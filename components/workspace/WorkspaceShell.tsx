@@ -97,7 +97,7 @@ export function WorkspaceShell({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[300px_1fr_360px]">
+      <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[320px_1fr_380px] xl:grid-cols-[360px_1fr_420px] 2xl:grid-cols-[380px_1fr_460px]">
         <div className="min-h-0 border-b border-border lg:border-b-0">
           <LeftPanel
             plan={plan}

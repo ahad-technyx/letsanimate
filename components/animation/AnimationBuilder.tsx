@@ -277,7 +277,7 @@ export function AnimationBuilder({
 
   return (
     <form
-      className="flex h-full flex-col gap-5"
+      className="flex h-full flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void onGenerate();
@@ -471,68 +471,75 @@ export function AnimationBuilder({
         </Field>
       )}
 
-      <Field label="Preset" htmlFor="preset">
-        <PresetPicker
-          presetId={presetId}
-          onPresetChange={onPresetChange}
-          disabled={generating}
-          mode={mode}
-        />
-      </Field>
+      {/* Preset picker — its own tab bar acts as the section heading, so
+          no outer Field label needed. */}
+      <PresetPicker
+        presetId={presetId}
+        onPresetChange={onPresetChange}
+        disabled={generating}
+        mode={mode}
+      />
 
-      <Field label="Animation Style" htmlFor="style">
-        <Select
-          id="style"
-          value={plan.style}
-          disabled={generating}
-          onChange={(e) => onPlanChange({ ...plan, style: e.target.value as AnimationStyle })}
-        >
-          {STYLE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      {!is3D && (
-        <Field label="Trigger" htmlFor="trigger">
+      {/* Style + Trigger + Framework — dense 2-col grid so a narrow left
+          column doesn't stack three full-width selects. Trigger is hidden
+          in 3D mode, and Framework spans the row when it's alone. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Style" htmlFor="style">
           <Select
-            id="trigger"
-            value={plan.trigger.type}
+            id="style"
+            value={plan.style}
             disabled={generating}
-            onChange={(e) =>
-              onPlanChange({
-                ...plan,
-                trigger: triggerFromKind(e.target.value as TriggerKind, plan.trigger),
-              })
-            }
+            onChange={(e) => onPlanChange({ ...plan, style: e.target.value as AnimationStyle })}
           >
-            {TRIGGER_OPTIONS.map((o) => (
+            {STYLE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </Select>
         </Field>
-      )}
 
-      <Field label="Framework" htmlFor="framework">
-        <Select
-          id="framework"
-          value={plan.framework}
-          disabled={generating}
-          onChange={(e) =>
-            onPlanChange({ ...plan, framework: e.target.value as AnimationFramework })
-          }
-        >
-          {(is3D ? FRAMEWORK_OPTIONS_3D : FRAMEWORK_OPTIONS).map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
+        {!is3D && (
+          <Field label="Trigger" htmlFor="trigger">
+            <Select
+              id="trigger"
+              value={plan.trigger.type}
+              disabled={generating}
+              onChange={(e) =>
+                onPlanChange({
+                  ...plan,
+                  trigger: triggerFromKind(e.target.value as TriggerKind, plan.trigger),
+                })
+              }
+            >
+              {TRIGGER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        <div className={is3D ? "" : "col-span-2"}>
+          <Field label="Framework" htmlFor="framework">
+            <Select
+              id="framework"
+              value={plan.framework}
+              disabled={generating}
+              onChange={(e) =>
+                onPlanChange({ ...plan, framework: e.target.value as AnimationFramework })
+              }
+            >
+              {(is3D ? FRAMEWORK_OPTIONS_3D : FRAMEWORK_OPTIONS).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </div>
 
       <div className="mt-auto space-y-2">
         {error && (
