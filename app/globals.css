@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0b;
+  --muted: #f4f4f5;
+  --muted-foreground: #6b7280;
+  --card: #ffffff;
+  --card-foreground: #0a0a0b;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #a1a1aa;
+  --accent: #6366f1;
+  --accent-foreground: #ffffff;
+  --radius: 0.5rem;
+}
+
+.dark,
+:root.dark {
+  --background: #0a0a0b;
+  --foreground: #f4f4f5;
+  --muted: #17171a;
+  --muted-foreground: #a1a1aa;
+  --card: #101013;
+  --card-foreground: #f4f4f5;
+  --border: #26262b;
+  --input: #26262b;
+  --ring: #3f3f46;
+  --accent: #818cf8;
+  --accent-foreground: #0a0a0b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: var(--font-inter);
+  --radius-md: var(--radius);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  body {
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
+/* Zero-dep syntax highlighter tokens (see lib/animation/highlight.ts) */
+.mp-code [data-tok="keyword"] {
+  color: #c084fc;
+}
+.mp-code [data-tok="string"] {
+  color: #86efac;
+}
+.mp-code [data-tok="comment"] {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.mp-code [data-tok="number"] {
+  color: #fbbf24;
+}
+.mp-code [data-tok="function"] {
+  color: #93c5fd;
+}
+.mp-code [data-tok="property"] {
+  color: #7dd3fc;
+}
+.mp-code [data-tok="punct"] {
+  color: var(--muted-foreground);
+}
+
+/* Scrollbars ----------------------------------------------------- */
+/* Firefox */
+html {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+/* WebKit / Chromium / Edge / Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--border) 85%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+}
+*::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Preview canvas ------------------------------------------------- */
+.mp-preview-backdrop {
+  background-color: var(--muted);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.mp-preview-scene .mp-selected {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+  transition: outline-color 120ms ease;
+}
