@@ -59,10 +59,12 @@ export function Hero() {
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Button variant="outline" size="lg">
-            <PlayCircle className="h-4 w-4" />
-            See Example
-          </Button>
+          <a href="#example">
+            <Button variant="outline" size="lg">
+              <PlayCircle className="h-4 w-4" />
+              See Example
+            </Button>
+          </a>
         </div>
       </div>
     </section>

@@ -9,7 +9,7 @@ const tracks = [
 
 export function ExampleAnimation() {
   return (
-    <section className="border-t border-border/60">
+    <section id="example" className="scroll-mt-20 border-t border-border/60">
       <div className="mx-auto max-w-6xl px-6 py-24">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>
