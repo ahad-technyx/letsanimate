@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAIProvider } from "@/lib/ai/provider";
-import { AnimationFrameworkSchema, AnimationStyleSchema } from "@/lib/ai/schema";
+import {
+  AnimationFrameworkSchema,
+  AnimationModeSchema,
+  AnimationStyleSchema,
+} from "@/lib/ai/schema";
 import type { GenerateApiResponse, GenerateErrorCode } from "@/types/ai";
 
 export const runtime = "nodejs";
@@ -15,6 +19,7 @@ const ScreenshotSchema = z.object({
 
 const RequestSchema = z.object({
   prompt: z.string().trim().min(3, "Prompt is too short.").max(2000, "Prompt is too long."),
+  mode: AnimationModeSchema.optional(),
   style: AnimationStyleSchema.optional(),
   trigger: z.enum(["onLoad", "onScroll", "onHover", "onClick", "onInView"]).optional(),
   framework: AnimationFrameworkSchema.optional(),

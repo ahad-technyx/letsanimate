@@ -1,9 +1,13 @@
+export type AnimationMode = "2d" | "3d";
+
 export type AnimationFramework =
   | "gsap"
   | "gsap-scrolltrigger"
   | "css"
   | "framer-motion"
-  | "web-animations";
+  | "web-animations"
+  | "three-js"
+  | "react-three-fiber";
 
 export type AnimationStyle =
   | "minimal"
@@ -47,12 +51,43 @@ export interface AnimationProperties {
   transformOrigin?: string;
 }
 
+/**
+ * Per-element 3D properties. Only meaningful when `plan.mode === "3d"`.
+ * Rotations are in **degrees** (converted to radians by the 3D engine) to
+ * match the 2D `rotation` convention. `positionX/Y/Z` are world-space units.
+ * `scale` is uniform; `scaleX/Y/Z` override per-axis. Material fields
+ * (`color`, `emissive`, `opacity`, `wireframe`) animate the mesh material.
+ */
+export interface Animation3DProperties {
+  positionX?: number;
+  positionY?: number;
+  positionZ?: number;
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  scale?: number;
+  scaleX?: number;
+  scaleY?: number;
+  scaleZ?: number;
+  opacity?: number;
+  color?: string;
+  emissive?: string;
+  wireframe?: boolean;
+}
+
+/**
+ * Union of 2D + 3D property bags. All fields optional so a single element
+ * only sets the ones it cares about. `plan.mode` decides which subset the
+ * preview engine / code generator reads.
+ */
+export type AnimationElementProperties = AnimationProperties & Animation3DProperties;
+
 export interface AnimationElement {
   id: string;
   selector: string;
   label?: string;
-  from?: AnimationProperties;
-  to?: AnimationProperties;
+  from?: AnimationElementProperties;
+  to?: AnimationElementProperties;
   timing: AnimationTiming;
 }
 
@@ -100,10 +135,35 @@ export interface TimelineSegment {
   end: number;
 }
 
+/**
+ * Optional 3D scene configuration. Only read when `plan.mode === "3d"`.
+ * The preview engine uses these to set up the camera, lights, and clear
+ * color before running the per-element timeline.
+ */
+export interface Animation3DScene {
+  /** Preset scene shape. Determines default meshes if the plan has no elements. */
+  kind?: "cube" | "particles" | "text" | "mesh" | "gallery3d";
+  camera?: {
+    positionX?: number;
+    positionY?: number;
+    positionZ?: number;
+    fov?: number;
+  };
+  background?: string;
+  ambientIntensity?: number;
+  directionalIntensity?: number;
+}
+
 export interface AnimationPlan {
   id: string;
   title: string;
   description: string;
+  /**
+   * Which animation dimension this plan targets. `"2d"` (default) uses the
+   * GSAP/CSS engine; `"3d"` uses the Three.js engine. Optional on the type
+   * for backward compat with stored plans — `normalizePlan` fills it in.
+   */
+  mode?: AnimationMode;
   style: AnimationStyle;
   trigger: AnimationTrigger;
   framework: AnimationFramework;
@@ -114,6 +174,7 @@ export interface AnimationPlan {
   responsive: AnimationResponsiveConfig;
   accessibility: AnimationAccessibilityConfig;
   performance: AnimationPerformanceConfig;
+  scene3d?: Animation3DScene;
   /**
    * Optional preview hint — what's being animated (a car, a rocket, an emoji, etc.).
    * Rendered by SubjectPreview when the plan targets `.target`.

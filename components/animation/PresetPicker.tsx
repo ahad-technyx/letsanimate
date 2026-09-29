@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Box,
   LayoutGrid,
   Layers,
   Sparkles,
@@ -12,16 +13,19 @@ import {
   PRESETS,
   PRESET_CATEGORY_LABELS,
   PRESET_CATEGORY_ORDER,
+  PRESET_CATEGORY_ORDER_3D,
   type PresetCategory,
 } from "@/lib/animation/presets";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import type { AnimationMode } from "@/types/animation";
 
 const CATEGORY_ICON: Record<PresetCategory, LucideIcon> = {
   heading: Type,
   boxes: LayoutGrid,
   section: Layers,
   generic: Sparkles,
+  three: Box,
 };
 
 // Per-category accent tints — kept subtle so multiple cards on screen
@@ -47,12 +51,19 @@ const CATEGORY_TINT: Record<PresetCategory, { icon: string; ring: string; glow: 
     ring: "ring-accent/60",
     glow: "from-accent/12 via-transparent",
   },
+  three: {
+    icon: "text-violet-400",
+    ring: "ring-violet-400/60",
+    glow: "from-violet-500/12 via-transparent",
+  },
 };
 
 export interface PresetPickerProps {
   presetId: string;
   onPresetChange: (id: string) => void;
   disabled?: boolean;
+  /** Which set of categories to expose. Defaults to "2d". */
+  mode?: AnimationMode;
 }
 
 // Cache built descriptions once — build() is a pure object literal.
@@ -65,31 +76,44 @@ const PRESET_META: Record<string, { description: string; title: string }> = (() 
   return map;
 })();
 
-const CATEGORIES: PresetCategory[] = PRESET_CATEGORY_ORDER;
-
 function isSpecialState(id: string): boolean {
   return id === "__loaded__" || id === "__generated__";
 }
 
-function initialTabFor(presetId: string): PresetCategory {
-  const found = PRESETS.find((p) => p.id === presetId);
-  if (found && PRESET_CATEGORY_ORDER.includes(found.category)) return found.category;
-  return PRESET_CATEGORY_ORDER[0];
+function categoriesForMode(mode: AnimationMode): PresetCategory[] {
+  return mode === "3d" ? PRESET_CATEGORY_ORDER_3D : PRESET_CATEGORY_ORDER;
 }
 
-export function PresetPicker({ presetId, onPresetChange, disabled }: PresetPickerProps) {
-  const [tab, setTab] = useState<PresetCategory>(() => initialTabFor(presetId));
+function initialTabFor(presetId: string, categories: PresetCategory[]): PresetCategory {
+  const found = PRESETS.find((p) => p.id === presetId);
+  if (found && categories.includes(found.category)) return found.category;
+  return categories[0];
+}
+
+export function PresetPicker({
+  presetId,
+  onPresetChange,
+  disabled,
+  mode = "2d",
+}: PresetPickerProps) {
+  const categories = useMemo(() => categoriesForMode(mode), [mode]);
+  const [rawTab, setRawTab] = useState<PresetCategory>(() =>
+    initialTabFor(presetId, categories),
+  );
+  // When the caller flips the dimension, `rawTab` may fall out of the new
+  // category set — shadow it with the first valid one for this render.
+  const tab = categories.includes(rawTab) ? rawTab : categories[0];
 
   const byCategory = useMemo(() => {
     const map = new Map<PresetCategory, typeof PRESETS>();
-    for (const cat of CATEGORIES) {
+    for (const cat of categories) {
       map.set(
         cat,
         PRESETS.filter((p) => p.category === cat),
       );
     }
     return map;
-  }, []);
+  }, [categories]);
 
   const items = byCategory.get(tab) ?? [];
   const stateLabel = presetId === "__generated__" ? "AI generated" : "Current plan";
@@ -99,10 +123,10 @@ export function PresetPicker({ presetId, onPresetChange, disabled }: PresetPicke
       <Tabs
         value={tab}
         defaultValue={tab}
-        onValueChange={(v) => setTab(v as PresetCategory)}
+        onValueChange={(v) => setRawTab(v as PresetCategory)}
       >
         <TabsList className="w-full bg-muted/70">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const Icon = CATEGORY_ICON[cat];
             const tint = CATEGORY_TINT[cat];
             return (

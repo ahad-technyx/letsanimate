@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Divider } from "@/components/ui/divider";
 import type {
+  Animation3DScene,
   AnimationFramework,
+  AnimationMode,
   AnimationPlan,
   AnimationStyle,
   AnimationTrigger,
@@ -17,6 +19,7 @@ import type {
 import {
   EXAMPLE_PROMPTS,
   FRAMEWORK_OPTIONS,
+  FRAMEWORK_OPTIONS_3D,
   STYLE_OPTIONS,
   TRIGGER_OPTIONS,
 } from "@/lib/animation/options";
@@ -67,6 +70,49 @@ function Field({
     </div>
   );
 }
+
+function switchMode(plan: AnimationPlan, next: AnimationMode): AnimationPlan {
+  if ((plan.mode ?? "2d") === next) return plan;
+  if (next === "3d") {
+    const scene3d: Animation3DScene = plan.scene3d ?? { kind: "cube" };
+    return {
+      ...plan,
+      mode: "3d",
+      framework: "react-three-fiber",
+      trigger: { type: "onLoad" },
+      scene3d,
+      // A minimal default element so the 3D engine has something to animate.
+      // Users replace it via presets in Phase 3 or by editing directly.
+      elements:
+        plan.elements.length > 0 && plan.elements.some((el) => el.id.startsWith("3d-"))
+          ? plan.elements
+          : [
+              {
+                id: "3d-primary",
+                selector: scene3d.kind ?? "cube",
+                label: "Primary mesh",
+                from: { opacity: 0, scale: 0.2, rotationY: -180 },
+                to: { opacity: 1, scale: 1, rotationY: 0 },
+                timing: { duration: 1.2, delay: 0, ease: "power3.out" },
+              },
+            ],
+    };
+  }
+  return {
+    ...plan,
+    mode: "2d",
+    framework: "gsap",
+    trigger: { type: "onLoad" },
+  };
+}
+
+const SCENE3D_OPTIONS: { value: NonNullable<Animation3DScene["kind"]>; label: string }[] = [
+  { value: "cube", label: "Rotating Cube" },
+  { value: "mesh", label: "Faceted Mesh" },
+  { value: "particles", label: "Particle Field" },
+  { value: "text", label: "3D Text Slab" },
+  { value: "gallery3d", label: "3D Gallery" },
+];
 
 function triggerFromKind(kind: TriggerKind, existing: AnimationTrigger): AnimationTrigger {
   if (kind === existing.type) return existing;
@@ -144,6 +190,7 @@ export function AnimationBuilder({
     try {
       const next = await generateAnimationPlan({
         prompt: trimmed,
+        mode: plan.mode ?? "2d",
         style: plan.style,
         trigger: plan.trigger.type,
         framework: plan.framework,
@@ -225,6 +272,9 @@ export function AnimationBuilder({
     onScreenshotsChange(screenshots.filter((s) => s.id !== id));
   };
 
+  const mode: AnimationMode = plan.mode ?? "2d";
+  const is3D = mode === "3d";
+
   return (
     <form
       className="flex h-full flex-col gap-5"
@@ -234,6 +284,38 @@ export function AnimationBuilder({
       }}
       aria-label="Animation configuration"
     >
+      {/* Dimension toggle — pick the animation stack before anything else. */}
+      <Field label="Dimension" htmlFor="mode">
+        <div
+          id="mode"
+          role="radiogroup"
+          aria-label="Animation dimension"
+          className="inline-flex w-full rounded-md border border-border bg-muted/40 p-0.5"
+        >
+          {(["2d", "3d"] as AnimationMode[]).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={generating}
+                onClick={() => onPlanChange(switchMode(plan, m))}
+                className={
+                  "flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 " +
+                  (active
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {m === "2d" ? "2D · GSAP / CSS" : "3D · Three.js"}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
       {/* Prompt — first thing users see, hardest to miss */}
       <Field
         label="Describe your animation"
@@ -362,11 +444,39 @@ export function AnimationBuilder({
 
       <Divider />
 
+      {is3D && (
+        <Field label="3D Scene" htmlFor="scene3d-kind">
+          <Select
+            id="scene3d-kind"
+            value={plan.scene3d?.kind ?? "cube"}
+            disabled={generating}
+            onChange={(e) => {
+              const kind = e.target.value as NonNullable<Animation3DScene["kind"]>;
+              onPlanChange({
+                ...plan,
+                scene3d: { ...(plan.scene3d ?? {}), kind },
+                // Point the default element's selector at the new mesh name.
+                elements: plan.elements.map((el) =>
+                  el.id === "3d-primary" ? { ...el, selector: kind } : el,
+                ),
+              });
+            }}
+          >
+            {SCENE3D_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+
       <Field label="Preset" htmlFor="preset">
         <PresetPicker
           presetId={presetId}
           onPresetChange={onPresetChange}
           disabled={generating}
+          mode={mode}
         />
       </Field>
 
@@ -385,25 +495,27 @@ export function AnimationBuilder({
         </Select>
       </Field>
 
-      <Field label="Trigger" htmlFor="trigger">
-        <Select
-          id="trigger"
-          value={plan.trigger.type}
-          disabled={generating}
-          onChange={(e) =>
-            onPlanChange({
-              ...plan,
-              trigger: triggerFromKind(e.target.value as TriggerKind, plan.trigger),
-            })
-          }
-        >
-          {TRIGGER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      {!is3D && (
+        <Field label="Trigger" htmlFor="trigger">
+          <Select
+            id="trigger"
+            value={plan.trigger.type}
+            disabled={generating}
+            onChange={(e) =>
+              onPlanChange({
+                ...plan,
+                trigger: triggerFromKind(e.target.value as TriggerKind, plan.trigger),
+              })
+            }
+          >
+            {TRIGGER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
 
       <Field label="Framework" htmlFor="framework">
         <Select
@@ -414,7 +526,7 @@ export function AnimationBuilder({
             onPlanChange({ ...plan, framework: e.target.value as AnimationFramework })
           }
         >
-          {FRAMEWORK_OPTIONS.map((o) => (
+          {(is3D ? FRAMEWORK_OPTIONS_3D : FRAMEWORK_OPTIONS).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>

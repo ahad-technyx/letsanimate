@@ -1,5 +1,6 @@
 import type {
   AnimationFramework,
+  AnimationMode,
   AnimationPlan,
   AnimationStyle,
   TriggerKind,
@@ -12,6 +13,12 @@ export interface AIScreenshotInput {
 
 export interface AIPlanRequest {
   prompt: string;
+  /**
+   * Animation dimension to generate for. Defaults to "2d". When "3d",
+   * the provider swaps to the Three.js system prompt and the mock provider
+   * returns a plan targeting Three.js meshes.
+   */
+  mode?: AnimationMode;
   style?: AnimationStyle;
   trigger?: TriggerKind;
   framework?: AnimationFramework;

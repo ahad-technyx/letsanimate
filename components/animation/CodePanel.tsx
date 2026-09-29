@@ -8,13 +8,12 @@ import {
   TARGET_LABELS,
   TARGET_LANGUAGE,
   generateCode,
+  targetsForMode,
   type CodeTarget,
 } from "@/lib/animation/code-generator";
 import { tokenize } from "@/lib/animation/highlight";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-
-const TARGETS: CodeTarget[] = ["gsap", "gsap-scrolltrigger", "react", "nextjs", "css"];
 
 const MIME: Record<string, string> = {
   js: "text/javascript",
@@ -43,7 +42,14 @@ function downloadFile(name: string, content: string, mime: string) {
 }
 
 export function CodePanel({ plan }: { plan: AnimationPlan }) {
-  const [target, setTarget] = useState<CodeTarget>("react");
+  const targets = useMemo(() => targetsForMode(plan.mode ?? "2d"), [plan.mode]);
+  const defaultTarget: CodeTarget = plan.mode === "3d" ? "react-three-fiber" : "react";
+  const [rawTarget, setRawTarget] = useState<CodeTarget>(defaultTarget);
+  // When the plan flips modes, `rawTarget` may fall out of the new target
+  // set — shadow it with the default for this render rather than syncing
+  // via useEffect (which cascades a re-render).
+  const target = targets.includes(rawTarget) ? rawTarget : defaultTarget;
+
   const [copied, setCopied] = useState(false);
 
   const code = useMemo(() => generateCode(plan, target), [plan, target]);
@@ -73,9 +79,9 @@ export function CodePanel({ plan }: { plan: AnimationPlan }) {
           <Select
             className="h-7 w-auto min-w-40 text-xs"
             value={target}
-            onChange={(e) => setTarget(e.target.value as CodeTarget)}
+            onChange={(e) => setRawTarget(e.target.value as CodeTarget)}
           >
-            {TARGETS.map((t) => (
+            {targets.map((t) => (
               <option key={t} value={t}>
                 {TARGET_LABELS[t]}
               </option>

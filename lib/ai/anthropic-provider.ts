@@ -3,9 +3,9 @@ import type { AIPlanRequest, AIPlanResponse, AIScreenshotInput } from "@/types/a
 import { normalizePlan } from "@/lib/animation/utils";
 import { safeValidatePlan, type ValidationResult } from "./schema";
 import {
-  SYSTEM_PROMPT_PLAN_ANIMATION,
   buildPlanPrompt,
   buildRepairPrompt,
+  systemPromptForMode,
 } from "./prompts";
 import type { AIProvider } from "./provider";
 
@@ -47,15 +47,17 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async generatePlan(req: AIPlanRequest): Promise<AIPlanResponse> {
+    const mode = req.mode ?? "2d";
+    const systemPrompt = systemPromptForMode(mode);
     const userPrompt = buildPlanPrompt(req);
-    const first = await this.call(userPrompt, req.screenshots);
+    const first = await this.call(systemPrompt, userPrompt, req.screenshots);
     const firstValid = this.tryParse(first);
     if (firstValid.ok) {
       return { plan: normalizePlan(firstValid.plan), reasoning: "First-shot valid." };
     }
 
     // Repair pass — don't resend the images, just the failed JSON.
-    const repaired = await this.call(buildRepairPrompt(first, firstValid.error));
+    const repaired = await this.call(systemPrompt, buildRepairPrompt(first, firstValid.error));
     const repairedValid = this.tryParse(repaired);
     if (repairedValid.ok) {
       return {
@@ -89,7 +91,11 @@ export class AnthropicProvider implements AIProvider {
     return blocks;
   }
 
-  private async call(userPrompt: string, screenshots?: AIScreenshotInput[]): Promise<string> {
+  private async call(
+    systemPrompt: string,
+    userPrompt: string,
+    screenshots?: AIScreenshotInput[],
+  ): Promise<string> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
@@ -107,7 +113,7 @@ export class AnthropicProvider implements AIProvider {
           system: [
             {
               type: "text",
-              text: SYSTEM_PROMPT_PLAN_ANIMATION,
+              text: systemPrompt,
               cache_control: { type: "ephemeral" },
             },
           ],

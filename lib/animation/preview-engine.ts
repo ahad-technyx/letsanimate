@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { AnimationPlan, ScrollTriggerConfig } from "@/types/animation";
 import { toGsapVars } from "./utils";
+import { createPreview3D } from "./preview-engine-3d";
 
 let scrollTriggerRegistered = false;
 function ensureScrollTrigger() {
@@ -58,6 +59,10 @@ export function createPreview(
   plan: AnimationPlan,
   opts: PreviewOptions = {},
 ): PreviewHandle {
+  // 3D plans use a separate Three.js engine that satisfies the same
+  // PreviewHandle contract.
+  if (plan.mode === "3d") return createPreview3D(root, plan, opts);
+
   const respectReduced = opts.respectReducedMotion ?? plan.accessibility.respectReducedMotion;
   const reduced = respectReduced && prefersReducedMotion();
 

@@ -21,13 +21,16 @@ export function estimatePlanDuration(plan: Pick<AnimationPlan, "elements">): num
 export function normalizePlan(plan: AnimationPlan): AnimationPlan {
   const timeline: TimelineSegment[] = buildTimelineSegments(plan);
   const duration = plan.duration > 0 ? plan.duration : estimatePlanDuration(plan);
+  const mode = plan.mode ?? "2d";
+  const defaultWillChange = mode === "3d" ? ["transform"] : ["transform", "opacity"];
   return {
     ...plan,
+    mode,
     duration,
     timeline,
     responsive: plan.responsive ?? { reducedMotion: "respect" },
     accessibility: plan.accessibility ?? { respectReducedMotion: true },
-    performance: plan.performance ?? { gpuAccelerated: true, willChange: ["transform", "opacity"] },
+    performance: plan.performance ?? { gpuAccelerated: true, willChange: defaultWillChange },
   };
 }
 

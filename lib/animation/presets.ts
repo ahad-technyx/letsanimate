@@ -1,6 +1,8 @@
 import type {
+  Animation3DScene,
   AnimationElement,
   AnimationFramework,
+  AnimationMode,
   AnimationPlan,
   AnimationTrigger,
   Easing,
@@ -50,6 +52,8 @@ function makePlan({
   ctx,
   elements,
   style = "premium",
+  mode,
+  scene3d,
 }: {
   id: string;
   title: string;
@@ -57,12 +61,15 @@ function makePlan({
   elements: AnimationElement[];
   ctx?: PresetContext;
   style?: AnimationPlan["style"];
+  mode?: AnimationMode;
+  scene3d?: Animation3DScene;
 }): AnimationPlan {
   const c = ctx ?? DEFAULT_CTX;
   return normalizePlan({
     id,
     title,
     description,
+    mode,
     style,
     trigger: c.trigger,
     framework: c.framework,
@@ -74,10 +81,18 @@ function makePlan({
     accessibility: { respectReducedMotion: true, focusManagement: "preserve" },
     performance: {
       gpuAccelerated: true,
-      willChange: ["transform", "opacity"],
+      willChange: mode === "3d" ? ["transform"] : ["transform", "opacity"],
     },
+    scene3d,
   });
 }
+
+/** Preset context for 3D — Three.js on page load, no scroll-driven timing. */
+const THREE_CTX: PresetContext = {
+  framework: "react-three-fiber",
+  trigger: { type: "onLoad" },
+  ease: "power3.out",
+};
 
 function createFadeUp(): AnimationPlan {
   return makePlan({
@@ -735,7 +750,150 @@ function createSectionSlideStack(): AnimationPlan {
   });
 }
 
-export type PresetCategory = "heading" | "boxes" | "section" | "generic";
+/* ─────────────────────────────── 3D catalog ──────────────────────────────
+ * Target mesh names produced by the 3D preview engine:
+ *   scene3d.kind = "cube"       → "cube"
+ *   scene3d.kind = "mesh"       → "mesh"
+ *   scene3d.kind = "particles"  → "particles" (group) + "points" (child)
+ *   scene3d.kind = "text"       → "text"
+ *   scene3d.kind = "gallery3d"  → "gallery" (group), children "card-0"…"card-4"
+ * Selectors may be written with or without a leading "."; the 3D engine
+ * strips it before looking the mesh up by name.
+ */
+
+function create3DCubeSpin(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_cube_spin",
+    title: "3D · Cube Spin",
+    description: "A cube tumbles into place with a full-rotation reveal.",
+    style: "premium",
+    mode: "3d",
+    scene3d: { kind: "cube" },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_cube",
+        selector: "cube",
+        label: "Cube",
+        from: { opacity: 0, scale: 0.2, rotationX: -180, rotationY: -360 },
+        to: { opacity: 1, scale: 1, rotationX: 0, rotationY: 0 },
+        timing: { duration: 1.4, delay: 0, ease: "power3.out" },
+      },
+    ],
+  });
+}
+
+function create3DCubeFlyIn(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_cube_flyin",
+    title: "3D · Cube Fly-In",
+    description: "The cube arrives from behind the camera and settles into frame.",
+    style: "cinematic",
+    mode: "3d",
+    scene3d: { kind: "cube", camera: { positionZ: 5 } },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_cube",
+        selector: "cube",
+        label: "Cube",
+        from: { opacity: 0, positionZ: -6, rotationY: -90 },
+        to: { opacity: 1, positionZ: 0, rotationY: 0 },
+        timing: { duration: 1.1, delay: 0.1, ease: "power2.out" },
+      },
+    ],
+  });
+}
+
+function create3DMeshPulse(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_mesh_pulse",
+    title: "3D · Mesh Pulse",
+    description: "A faceted icosahedron pulses in with a color shift.",
+    style: "experimental",
+    mode: "3d",
+    scene3d: { kind: "mesh" },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_mesh",
+        selector: "mesh",
+        label: "Icosahedron",
+        from: { opacity: 0, scale: 0.4, rotationY: -180, color: "#1e1b4b" },
+        to: { opacity: 1, scale: 1.05, rotationY: 0, color: "#8b5cf6" },
+        timing: { duration: 1.2, delay: 0, ease: "back.out", yoyo: true, repeat: 1 },
+      },
+    ],
+  });
+}
+
+function create3DParticlesReveal(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_particles_reveal",
+    title: "3D · Particle Field",
+    description: "A cloud of particles blooms outward from a central point.",
+    style: "cinematic",
+    mode: "3d",
+    scene3d: { kind: "particles", background: "#050510" },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_particles",
+        selector: "particles",
+        label: "Particles group",
+        from: { opacity: 0, scale: 0.1, rotationY: 0 },
+        to: { opacity: 1, scale: 1, rotationY: 360 },
+        timing: { duration: 2, delay: 0, ease: "power2.out" },
+      },
+    ],
+  });
+}
+
+function create3DTextExtrude(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_text_extrude",
+    title: "3D · Text Extrude",
+    description: "An extruded slab of text rises with a subtle rotation.",
+    style: "premium",
+    mode: "3d",
+    scene3d: { kind: "text" },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_text",
+        selector: "text",
+        label: "Text slab",
+        from: { opacity: 0, positionY: -1.5, rotationX: 90, scale: 0.9 },
+        to: { opacity: 1, positionY: 0, rotationX: 0, scale: 1 },
+        timing: { duration: 1, delay: 0, ease: "power3.out" },
+      },
+    ],
+  });
+}
+
+function create3DGalleryOrbit(): AnimationPlan {
+  return makePlan({
+    id: "preset_3d_gallery_orbit",
+    title: "3D · Gallery Orbit",
+    description: "A ring of cards spins into place around the camera.",
+    style: "cinematic",
+    mode: "3d",
+    scene3d: { kind: "gallery3d" },
+    ctx: THREE_CTX,
+    elements: [
+      {
+        id: "el_gallery",
+        selector: "gallery",
+        label: "Gallery ring",
+        from: { opacity: 0, scale: 0.3, rotationY: -720 },
+        to: { opacity: 1, scale: 1, rotationY: 0 },
+        timing: { duration: 1.6, delay: 0, ease: "power4.out" },
+      },
+    ],
+  });
+}
+
+export type PresetCategory = "heading" | "boxes" | "section" | "generic" | "three";
 
 export interface PresetDescriptor {
   id: string;
@@ -882,6 +1040,34 @@ export const PRESETS: PresetDescriptor[] = [
     category: "section",
     build: createSectionSlideStack,
   },
+
+  // 3D catalog
+  { id: "preset_3d_cube_spin", label: "Cube Spin", category: "three", build: create3DCubeSpin },
+  {
+    id: "preset_3d_cube_flyin",
+    label: "Cube Fly-In",
+    category: "three",
+    build: create3DCubeFlyIn,
+  },
+  { id: "preset_3d_mesh_pulse", label: "Mesh Pulse", category: "three", build: create3DMeshPulse },
+  {
+    id: "preset_3d_particles_reveal",
+    label: "Particle Field",
+    category: "three",
+    build: create3DParticlesReveal,
+  },
+  {
+    id: "preset_3d_text_extrude",
+    label: "Text Extrude",
+    category: "three",
+    build: create3DTextExtrude,
+  },
+  {
+    id: "preset_3d_gallery_orbit",
+    label: "Gallery Orbit",
+    category: "three",
+    build: create3DGalleryOrbit,
+  },
 ];
 
 export const PRESET_CATEGORY_LABELS: Record<PresetCategory, string> = {
@@ -889,11 +1075,15 @@ export const PRESET_CATEGORY_LABELS: Record<PresetCategory, string> = {
   boxes: "Boxes & Cards",
   section: "Section / Page",
   generic: "Generic",
+  three: "3D · Three.js",
 };
 
 // `generic` presets are still built (mock provider + templates reference them
 // by id) but are intentionally omitted here so they don't appear in the picker.
 export const PRESET_CATEGORY_ORDER: PresetCategory[] = ["heading", "boxes", "section"];
+
+/** 3D-mode presets are grouped separately so PresetPicker can filter by mode. */
+export const PRESET_CATEGORY_ORDER_3D: PresetCategory[] = ["three"];
 
 export function getPresetById(id: string): PresetDescriptor | undefined {
   return PRESETS.find((p) => p.id === id);

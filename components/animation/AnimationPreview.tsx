@@ -40,9 +40,12 @@ export function AnimationPreview({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<PreviewHandle | null>(null);
 
+  const is3D = plan.mode === "3d";
   const sceneKind = useMemo(() => pickPreviewScene(plan), [plan]);
-  const isScrollDriven = plan.trigger.type === "onScroll" || plan.trigger.type === "onInView";
-  const isPinned = plan.trigger.type === "onScroll" && plan.trigger.scrollTrigger?.pin === true;
+  const isScrollDriven =
+    !is3D && (plan.trigger.type === "onScroll" || plan.trigger.type === "onInView");
+  const isPinned =
+    !is3D && plan.trigger.type === "onScroll" && plan.trigger.scrollTrigger?.pin === true;
 
   const disableBelow = plan.responsive.disableBelow ?? 0;
   const currentWidth = viewportPx[viewport];
@@ -82,10 +85,12 @@ export function AnimationPreview({
     engineRef.current?.setLoop(loop);
   }, [loop]);
 
-  // Selection highlight: outline every DOM node the selected plan-element targets.
+  // Selection highlight: outline every DOM node the selected plan-element
+  // targets. Skipped for 3D — the canvas is a single element and the meshes
+  // aren't in the DOM tree.
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return;
+    if (!scene || is3D) return;
     scene.querySelectorAll(".mp-selected").forEach((el) => el.classList.remove("mp-selected"));
     if (!selectedElementId) return;
     const el = plan.elements.find((e) => e.id === selectedElementId);
@@ -95,7 +100,7 @@ export function AnimationPreview({
     } catch {
       /* invalid selector — ignore */
     }
-  }, [selectedElementId, plan]);
+  }, [selectedElementId, plan, is3D]);
 
   const onPlay = useCallback(() => {
     engineRef.current?.play();
@@ -183,6 +188,12 @@ export function AnimationPreview({
                 </p>
               </div>
             </div>
+          ) : is3D ? (
+            <div
+              ref={sceneRef}
+              className="mp-preview-scene-3d h-full w-full"
+              aria-label="3D animation preview"
+            />
           ) : (
             <div ref={scrollerRef} className="mp-preview-scroller h-full overflow-y-auto">
               <div ref={sceneRef} className="mp-preview-scene">

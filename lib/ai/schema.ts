@@ -22,12 +22,33 @@ export const AnimationPropertiesSchema = z.object({
   transformOrigin: z.string().optional(),
 });
 
+export const Animation3DPropertiesSchema = z.object({
+  positionX: z.number().optional(),
+  positionY: z.number().optional(),
+  positionZ: z.number().optional(),
+  rotationX: z.number().optional(),
+  rotationY: z.number().optional(),
+  rotationZ: z.number().optional(),
+  scaleX: z.number().optional(),
+  scaleY: z.number().optional(),
+  scaleZ: z.number().optional(),
+  color: z.string().optional(),
+  emissive: z.string().optional(),
+  wireframe: z.boolean().optional(),
+});
+
+/** Union of 2D and 3D fields. `scale` and `opacity` are shared. */
+export const AnimationElementPropertiesSchema = z.object({
+  ...AnimationPropertiesSchema.shape,
+  ...Animation3DPropertiesSchema.shape,
+});
+
 export const AnimationElementSchema = z.object({
   id: z.string().min(1),
   selector: z.string().min(1),
   label: z.string().optional(),
-  from: AnimationPropertiesSchema.optional(),
-  to: AnimationPropertiesSchema.optional(),
+  from: AnimationElementPropertiesSchema.optional(),
+  to: AnimationElementPropertiesSchema.optional(),
   timing: AnimationTimingSchema,
 });
 
@@ -66,7 +87,26 @@ export const AnimationFrameworkSchema = z.enum([
   "css",
   "framer-motion",
   "web-animations",
+  "three-js",
+  "react-three-fiber",
 ]);
+
+export const AnimationModeSchema = z.enum(["2d", "3d"]);
+
+export const Animation3DSceneSchema = z.object({
+  kind: z.enum(["cube", "particles", "text", "mesh", "gallery3d"]).optional(),
+  camera: z
+    .object({
+      positionX: z.number().optional(),
+      positionY: z.number().optional(),
+      positionZ: z.number().optional(),
+      fov: z.number().positive().max(180).optional(),
+    })
+    .optional(),
+  background: z.string().optional(),
+  ambientIntensity: z.number().min(0).max(4).optional(),
+  directionalIntensity: z.number().min(0).max(4).optional(),
+});
 
 export const TimelineSegmentSchema = z.object({
   elementId: z.string(),
@@ -103,6 +143,7 @@ export const AnimationPlanSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   description: z.string(),
+  mode: AnimationModeSchema.optional(),
   style: AnimationStyleSchema,
   trigger: AnimationTriggerSchema,
   framework: AnimationFrameworkSchema,
@@ -113,6 +154,7 @@ export const AnimationPlanSchema = z.object({
   responsive: AnimationResponsiveConfigSchema,
   accessibility: AnimationAccessibilityConfigSchema,
   performance: AnimationPerformanceConfigSchema,
+  scene3d: Animation3DSceneSchema.optional(),
   subject: AnimationSubjectSchema.optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),

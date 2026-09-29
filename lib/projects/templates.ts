@@ -73,6 +73,24 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     description: "Pin the section, scrub a row sideways.",
     build: () => getPresetById("preset_horizontal_scroll")!.build(),
   },
+  {
+    id: "three-cube",
+    name: "3D · Rotating Cube",
+    description: "A Three.js cube tumbling into place. WebGL preview.",
+    build: () => getPresetById("preset_3d_cube_spin")!.build(),
+  },
+  {
+    id: "three-particles",
+    name: "3D · Particle Field",
+    description: "A cloud of particles blooming from the origin.",
+    build: () => getPresetById("preset_3d_particles_reveal")!.build(),
+  },
+  {
+    id: "three-gallery",
+    name: "3D · Gallery Orbit",
+    description: "A ring of cards spinning into a hero orbit.",
+    build: () => getPresetById("preset_3d_gallery_orbit")!.build(),
+  },
 ];
 
 export function getTemplate(id: string): ProjectTemplate | undefined {

@@ -74,6 +74,10 @@ export class MockProvider implements AIProvider {
     // Simulate a small latency so the loading UX is visible.
     await new Promise((r) => setTimeout(r, 700));
 
+    if ((req.mode ?? "2d") === "3d") {
+      return this.generate3DPlan(req);
+    }
+
     const prompt = (req.prompt ?? "").toLowerCase();
     const style = req.style ?? "premium";
     const requestedTrigger = req.trigger;
@@ -345,6 +349,53 @@ export class MockProvider implements AIProvider {
     return {
       plan,
       reasoning: "Deterministic keyword-driven plan (mock provider).",
+      warnings: warnings.length ? warnings : undefined,
+    };
+  }
+
+  /**
+   * 3D-mode keyword short-circuit. Detects scene kind + motion verbs from the
+   * prompt and returns a matching 3D preset with the description overwritten
+   * so the user sees their own words back.
+   */
+  private async generate3DPlan(req: AIPlanRequest): Promise<AIPlanResponse> {
+    const prompt = (req.prompt ?? "").toLowerCase();
+    const requestedFramework: AnimationFramework =
+      req.framework === "three-js" ? "three-js" : "react-three-fiber";
+
+    let presetId = "preset_3d_cube_spin";
+    if (/particle|dust|spark|point cloud/.test(prompt)) presetId = "preset_3d_particles_reveal";
+    else if (/gallery|carousel|ring of|orbit|around/.test(prompt))
+      presetId = "preset_3d_gallery_orbit";
+    else if (/text|word|letter|type|title|heading/.test(prompt))
+      presetId = "preset_3d_text_extrude";
+    else if (/icosahedron|sphere|polyhedron|mesh|shape/.test(prompt))
+      presetId = "preset_3d_mesh_pulse";
+    else if (/fly|zoom|dolly|approach|towards? camera/.test(prompt))
+      presetId = "preset_3d_cube_flyin";
+
+    const preset = getPresetById(presetId);
+    if (!preset) {
+      throw new Error(`3D preset ${presetId} not found`);
+    }
+    const base = preset.build();
+    const plan: AnimationPlan = normalizePlan({
+      ...base,
+      id: uid("plan"),
+      title: deriveTitle(req.prompt) || base.title,
+      description: req.prompt.trim() || base.description,
+      framework: requestedFramework,
+    });
+
+    const warnings: string[] = [];
+    if (req.screenshots && req.screenshots.length > 0) {
+      warnings.push(
+        `Mock provider does not analyze images — ${req.screenshots.length} screenshot${req.screenshots.length === 1 ? "" : "s"} ignored. Configure AI_API_KEY for vision.`,
+      );
+    }
+    return {
+      plan,
+      reasoning: `Matched 3D preset "${presetId}" from prompt keywords.`,
       warnings: warnings.length ? warnings : undefined,
     };
   }

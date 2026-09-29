@@ -39,7 +39,40 @@ function maxTravelPx(plan: AnimationPlan): number {
   return max;
 }
 
+function evalAt3D(plan: AnimationPlan, bp: Breakpoint): AdvisorResult {
+  const issues: AdvisorIssue[] = [];
+  const recs: string[] = [];
+  const kind = plan.scene3d?.kind ?? "cube";
+  const heavy = kind === "particles" || kind === "gallery3d";
+
+  if (bp === "mobile") {
+    if (heavy) {
+      issues.push({
+        id: "resp3d.mobile.heavy",
+        severity: "warning",
+        title: `${kind} scene on mobile`,
+        message: "WebGL scenes with many draw calls drain battery and can jank on mobile.",
+      });
+      recs.push("Consider responsive.disableBelow ≥ 640 so the scene falls back to a still on phones.");
+    } else {
+      recs.push("Cube / single-mesh scenes render fine on mobile at 60fps.");
+    }
+    if (!plan.responsive.disableBelow) {
+      recs.push("Set responsive.disableBelow to a mobile threshold if perf worries you.");
+    }
+  } else if (bp === "tablet") {
+    if (heavy) recs.push(`${kind} scenes are OK on tablet — profile before shipping.`);
+    else recs.push("Tablet handles this 3D scene comfortably.");
+  } else {
+    recs.push("Desktop GPUs handle this 3D scene without issue.");
+  }
+
+  return { status: statusFrom(issues), issues, recommendations: dedupe(recs) };
+}
+
 function evalAt(plan: AnimationPlan, bp: Breakpoint, width: number): AdvisorResult {
+  if (plan.mode === "3d") return evalAt3D(plan, bp);
+
   const disableBelow = plan.responsive.disableBelow ?? 0;
   if (disableBelow > width) {
     return {

@@ -1,4 +1,4 @@
-import type { AnimationPlan } from "@/types/animation";
+import type { Animation3DProperties, AnimationPlan } from "@/types/animation";
 import {
   dedupe,
   numOr0,
@@ -7,7 +7,64 @@ import {
   type AdvisorResult,
 } from "./advisor";
 
+function analyze3DAccessibility(plan: AnimationPlan): AdvisorResult {
+  const issues: AdvisorIssue[] = [];
+  const recs: string[] = [];
+  const a11y = plan.accessibility;
+
+  if (!a11y.respectReducedMotion) {
+    issues.push({
+      id: "a11y3d.reduced-motion",
+      severity: "critical",
+      title: "prefers-reduced-motion ignored",
+      message: "3D motion is especially disorienting for motion-sensitive users.",
+    });
+    recs.push("Enable accessibility.respectReducedMotion so the engine snaps to end state.");
+  }
+
+  // Multiple full rotations on any axis.
+  for (const el of plan.elements) {
+    const from = el.from as Animation3DProperties | undefined;
+    const to = el.to as Animation3DProperties | undefined;
+    const rx = Math.abs(numOr0(from?.rotationX) - numOr0(to?.rotationX));
+    const ry = Math.abs(numOr0(from?.rotationY) - numOr0(to?.rotationY));
+    const rz = Math.abs(numOr0(from?.rotationZ) - numOr0(to?.rotationZ));
+    const maxRot = Math.max(rx, ry, rz);
+    if (maxRot > 720) {
+      issues.push({
+        id: `a11y3d.rotation.${el.id}`,
+        severity: "warning",
+        title: "Multiple full 3D rotations",
+        message: `${el.label ?? el.selector} rotates up to ${Math.round(maxRot)}° on one axis.`,
+        selector: el.selector,
+      });
+      recs.push(`Cap 3D rotation near 360° on ${el.selector} to reduce vestibular load.`);
+    }
+  }
+
+  // Camera translation on Z is vestibular-triggering.
+  for (const el of plan.elements) {
+    const from = el.from as Animation3DProperties | undefined;
+    const to = el.to as Animation3DProperties | undefined;
+    const dz = Math.abs(numOr0(from?.positionZ) - numOr0(to?.positionZ));
+    if (dz > 4 && el.timing.duration < 0.6) {
+      issues.push({
+        id: `a11y3d.depth-rapid.${el.id}`,
+        severity: "warning",
+        title: "Rapid depth motion",
+        message: `${el.label ?? el.selector} moves ${dz.toFixed(1)} units on Z in ${el.timing.duration.toFixed(2)}s.`,
+        selector: el.selector,
+      });
+      recs.push(`Lengthen ${el.selector}'s duration or reduce Z travel — fast depth motion can trigger motion sickness.`);
+    }
+  }
+
+  return { status: statusFrom(issues), issues, recommendations: dedupe(recs) };
+}
+
 export function analyzeAccessibility(plan: AnimationPlan): AdvisorResult {
+  if (plan.mode === "3d") return analyze3DAccessibility(plan);
+
   const issues: AdvisorIssue[] = [];
   const recs: string[] = [];
   const a11y = plan.accessibility;

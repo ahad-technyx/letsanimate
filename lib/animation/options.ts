@@ -31,6 +31,12 @@ export const FRAMEWORK_OPTIONS: OptionItem<AnimationFramework>[] = [
   { value: "framer-motion", label: "Framer Motion" },
 ];
 
+/** Framework options offered when `plan.mode === "3d"`. */
+export const FRAMEWORK_OPTIONS_3D: OptionItem<AnimationFramework>[] = [
+  { value: "react-three-fiber", label: "React Three Fiber" },
+  { value: "three-js", label: "Three.js (vanilla)" },
+];
+
 export const EXAMPLE_PROMPTS = [
   "Reveal the hero heading word by word.",
   "Create a cinematic hero entrance.",

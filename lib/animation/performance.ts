@@ -1,4 +1,4 @@
-import type { AnimationPlan } from "@/types/animation";
+import type { Animation3DProperties, AnimationPlan } from "@/types/animation";
 import {
   dedupe,
   numOr0,
@@ -6,6 +6,97 @@ import {
   type AdvisorIssue,
   type AdvisorResult,
 } from "./advisor";
+
+function analyze3DPerformance(plan: AnimationPlan): AdvisorResult {
+  const issues: AdvisorIssue[] = [];
+  const recs: string[] = [];
+
+  const kind = plan.scene3d?.kind ?? "cube";
+
+  // 1. Particle field is the most GPU-hungry scene.
+  if (kind === "particles") {
+    issues.push({
+      id: "perf3d.particles",
+      severity: "warning",
+      title: "Particle scene is GPU-intensive",
+      message: "Particle rendering keeps the GPU busy even when idle.",
+    });
+    recs.push("Consider disabling on mobile via responsive.disableBelow ≥ 768.");
+  }
+
+  // 2. Long total duration
+  if (plan.duration > 6) {
+    issues.push({
+      id: "perf3d.long-duration",
+      severity: "warning",
+      title: "Long master timeline",
+      message: `Total duration is ${plan.duration.toFixed(2)}s — WebGL keeps rendering the whole time.`,
+    });
+    recs.push("Tighten delays or use finite repeat counts instead of -1 (infinite).");
+  }
+
+  // 3. Elements with infinite repeat keep the GPU animating forever.
+  const infinite = plan.elements.filter((e) => e.timing.repeat === -1);
+  if (infinite.length > 0) {
+    issues.push({
+      id: "perf3d.infinite-repeat",
+      severity: "warning",
+      title: "Infinite repeat on 3D element(s)",
+      message: `${infinite.length} element(s) loop forever, keeping the render loop hot.`,
+    });
+    recs.push("Bound the loop with a finite repeat count if the motion isn't essential.");
+  }
+
+  // 4. Wireframe toggles mid-timeline can force material recompiles.
+  const wireframeToggle = plan.elements.some((e) => {
+    const from = e.from as Animation3DProperties | undefined;
+    const to = e.to as Animation3DProperties | undefined;
+    return (
+      from?.wireframe !== undefined &&
+      to?.wireframe !== undefined &&
+      from.wireframe !== to.wireframe
+    );
+  });
+  if (wireframeToggle) {
+    issues.push({
+      id: "perf3d.wireframe",
+      severity: "warning",
+      title: "Wireframe animated between states",
+      message: "Wireframe changes can force material recompile — check for hitches.",
+    });
+    recs.push("Split into two meshes with fixed wireframe values if the hitch shows up.");
+  }
+
+  // 5. Extremely long camera-facing translations (positionZ > 10)
+  for (const el of plan.elements) {
+    const from = el.from as Animation3DProperties | undefined;
+    const to = el.to as Animation3DProperties | undefined;
+    const dz = Math.abs(numOr0(from?.positionZ) - numOr0(to?.positionZ));
+    if (dz > 10) {
+      issues.push({
+        id: `perf3d.deep-move.${el.id}`,
+        severity: "warning",
+        title: "Very long camera-axis travel",
+        message: `${el.label ?? el.selector} moves ${dz.toFixed(1)} units on Z.`,
+        selector: el.selector,
+      });
+      recs.push(`Reduce z travel on ${el.selector} or move the camera instead.`);
+    }
+  }
+
+  // 6. GPU accelerated off — should always be on for 3D.
+  if (plan.performance.gpuAccelerated === false) {
+    issues.push({
+      id: "perf3d.no-gpu",
+      severity: "critical",
+      title: "GPU acceleration disabled on a WebGL plan",
+      message: "3D animations require GPU acceleration.",
+    });
+    recs.push("Set performance.gpuAccelerated = true.");
+  }
+
+  return { status: statusFrom(issues), issues, recommendations: dedupe(recs) };
+}
 
 function peakConcurrency(plan: AnimationPlan): number {
   const events: Array<{ t: number; delta: number }> = [];
@@ -31,6 +122,8 @@ function blurRadius(filter: unknown): number {
 }
 
 export function analyzePerformance(plan: AnimationPlan): AdvisorResult {
+  if (plan.mode === "3d") return analyze3DPerformance(plan);
+
   const issues: AdvisorIssue[] = [];
   const recs: string[] = [];
 
